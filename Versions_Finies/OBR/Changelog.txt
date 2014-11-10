@@ -1,0 +1,31 @@
+0.1 :
+Première version, non fonctionnelle
+
+0.2 :
+- Mise en place du système de question/réponse, sous forme de commande de type OBR_COMMANDE-PARAMETRE1-PARAMETRE2-PARAMETRE3
+- Ajout du mode administrateur
+- Ajout des modes configuration et pilotage
+- Première version du calcul du niveau de batterie
+- Passage du port série en 57600 bauds
+- Ajout du mot de passe, et son système de réinitialisation à "2560"
+
+0.3 :
+- Ajout du système d'authentification sur les ports série
+- Ajout de la prise en charge des cartes d'extension (jusqu'à deux cartes d'extensions) via RS232 (Mais les cartes seront inactives, sauf pour demander la liste des connexions externes)
+- Ajout du mapage réseau, permettant de relier le PC, télécommande et les cartes d'extensions sur n'importe quel port série (de n'importe quelle carte d'extension)
+- Ajout du système d'adresse dans les commandes, permettant le routage des données à travers les cartes ([1|2]OBR_...)
+- Ajout des constantes de compilation pour définir le nom du robot, et son rôle (maitre/esclave), ainsi que le type (MEGA, UNO...)
+- Ajout de la détection de déconnexion série, et déconnexion auto de l'administrateur
+
+0.4 :
+- WatchDog plus intelligent, évite la surcharge du réseau lorsque ça discute
+- Mise en place de la configuration des cartes d'extension via les ports série, permettant de les utiliser
+- Centralisation du pilotage des cartes, via le maitre si connecté
+- Mise en place des codes d'erreur dans le noyau du système
+- Mise en place des fonctions de copie RAM->EEPROM et EEPROM->RAM, contenant les données de fonctionnement (liste des moteurs, capteurs...)
+
+0.5 :
+- Ajout des fonctions de mise en place des périphériques (moteurs, capteurs...)
+- Ajout de toutes les commandes de pilotage
+- Gestion du pilotage des autres cartes
+- 

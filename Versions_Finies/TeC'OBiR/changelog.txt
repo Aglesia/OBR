@@ -1,0 +1,28 @@
+1.0
+- Utilise le protocole OBR
+- On peut enlever "OBR" et "OBR_" au début de la commande
+- Tous les espaces sont remplacés par des tirets
+- Commande 'HELP' affiche l'aide et les commandes existantes lors de la création de la version 1.0
+- Commande 'EXIT' Ferme la connexion et quitte le programme
+
+1.1
+- La casse est automatiquement mise en majuscule sur les commandes envoyées
+- Ajout de la couleur bleue
+- Ajout de la commande 'VERSION' qui affiche la version du programme
+- Connexion automatique en essayant les 10 premiers ports en boucles
+- Detection de la déconnexion de l'arduino
+- Ajout de la connexion admin
+- Passage au baudrate de 57600 bauds.
+
+1.2
+- réécriture du noyau
+- Adaptation au nouveau protocole OBR 0.3
+- Prise en compte des adresses
+
+1.27
+- Désactivation automatique du WatchDog inclus sur l'OBR 0.37 et +
+
+1.3
+- Ajout du choix de l'adresse destinatrice (Commande sous forme "add:OBR_COMMANDE-PARAMS" ex : pour connaitre le nom du maitre, "M:OBR_NOM")
+- Ajout de l'adresse émetrice dans la réponse
+- Séparation du code TeC'OBiR et de la bibliothèque OBR_Communication
