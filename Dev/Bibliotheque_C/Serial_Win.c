@@ -36,8 +36,10 @@ int OuvrirCom(int NoPort, int Flags)
     // On ouvre le port série
     Serial *SerialPort = malloc(sizeof(Serial));
     SerialPort->NoCOM=NoPort;
-    char NomPort[100]="COM";
-    sprintf(NomPort, "COM%d", NoPort);
+    char NomPort[50]="\\\\.\\COM";
+    char NoPortTemp[10]="";
+    itoa(NoPort, NoPortTemp, 10);
+    strcat(NomPort, NoPortTemp);
     SerialPort->g_hCom = CreateFile(NomPort, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_WRITE_THROUGH | FILE_FLAG_NO_BUFFERING, NULL);
 
     if(SerialPort->g_hCom == INVALID_HANDLE_VALUE || !SerialPort->g_hCom)
@@ -47,19 +49,6 @@ int OuvrirCom(int NoPort, int Flags)
 
     // On déclare les variables
     int BaudRate=9600, ByteSize=8, DTR_Control=0, Parity=0, StopBit=1; // Config de base
-    if(Flags==1)
-        BaudRate=14400;
-    if(Flags==2)
-        BaudRate=19200;
-    if(Flags==3)
-        BaudRate=28800;
-    if(Flags==4)
-        BaudRate=38400;
-    if(Flags==5)
-        BaudRate=57600;
-    if(Flags==6)
-        BaudRate=115200;
-
 
     // On vide les tampons d'émission et de réception, mise à 1 DTR
     PurgeComm(SerialPort->g_hCom, PURGE_TXABORT|PURGE_RXABORT|PURGE_TXCLEAR|PURGE_RXCLEAR);
@@ -69,6 +58,44 @@ int OuvrirCom(int NoPort, int Flags)
 
     //Configuration actuelle
     GetCommState(SerialPort->g_hCom, &SerialPort->g_DCB);
+
+    // Définition de la vitesse
+    char Type = Flags/100
+    Flags = Flags - (Type*100);
+    BaudRate = 9600;
+    switch(Flags) // On détermine la vitesse de transmission
+    {
+        case 0:
+        BaudRate = 9600;
+        break;
+
+        case 1:
+        BaudRate = 14400;
+        break;
+
+        case 2:
+        BaudRate = 19200;
+        break;
+
+        case 3:
+        BaudRate = 28800;
+        break;
+
+        case 4:
+        BaudRate = 38400;
+        break;
+
+        case 5:
+        BaudRate = 57600;
+        break;
+
+        case 6:
+        BaudRate = 115200;
+        break;
+
+        default:
+        BaudRate = 9600;
+    }
 
     //Modification du DCB
     SerialPort->g_DCB.BaudRate = BaudRate;
@@ -139,7 +166,7 @@ int RecevoirCom(int SerialPointer, char* Buffer)
    COMSTAT Stat;
    DWORD Errors;
    long nbCarALire=0;
-   long NCarLus=0;
+   long NCarLus;
 
    if(SerialPort->g_hCom==NULL)
         return -3;

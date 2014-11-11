@@ -21,11 +21,17 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef SERIAL_H_INCLUDED
 #define SERIAL_H_INCLUDED
 
-#include "Serial.c"
-
    int OuvrirCom(int NoPort, int Flags);
    int EnvoyerCom(const char* Message, int SerialPointer);
    int RecevoirCom(int SerialPointer, char* Buffer);
    int FermerCom(int SerialPointer);
 
-#endif // PORTCOM_H_INCLUDED
+   #ifdef WIN32
+   #include "Serial_Win.c"
+   #elif UNIX
+   #include "Serial_Unix.c"
+   #elif
+   #error "OS non supporte par la bibliothèque Serial.h ..."
+   #endif
+
+#endif // SERIAL_H_INCLUDED
