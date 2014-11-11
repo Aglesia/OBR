@@ -19,8 +19,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 /// Inclusion des headers
-#include <unistd.h>
 #include <termios.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 /// Définition d'une structure dédiée aux ports séries
 typedef struct Serial {
@@ -58,18 +59,18 @@ int OuvrirCom(int NoPort, int Flags)
     switch(Flags)
     {
         case 1:
-        cfsetispeed(&options, B14400);
-        cfsetospeed(&options, B14400);
+        cfsetispeed(&options, B4800);
+        cfsetospeed(&options, B4800);
         break;
 
         case 2:
-        cfsetispeed(&options, B19200);
-        cfsetospeed(&options, B19200);
+        cfsetispeed(&options, B9600);
+        cfsetospeed(&options, B9600);
         break;
 
         case 3:
-        cfsetispeed(&options, B28800);
-        cfsetospeed(&options, B28800);
+        cfsetispeed(&options, B19200);
+        cfsetospeed(&options, B19200);
         break;
 
         case 4:
@@ -87,13 +88,28 @@ int OuvrirCom(int NoPort, int Flags)
         cfsetospeed(&options, B115200);
         break;
 
+        case 7:
+        cfsetispeed(&options, B230400);
+        cfsetospeed(&options, B230400);
+        break;
+
+        case 8:
+        cfsetispeed(&options, B460800);
+        cfsetospeed(&options, B460800);
+        break;
+
+        case 9:
+        cfsetispeed(&options, B921600);
+        cfsetospeed(&options, B921600);
+        break;
+
         default:
         cfsetispeed(&options, B9600);
         cfsetospeed(&options, B9600);
     }
 
     // On enregistre les paramètres
-    tcsetattr(SerialPort->fd, TCSANOW, &options); 
+    tcsetattr(SerialPort->fd, TCSANOW, &options);
 
 
     return SerialPort;
@@ -138,23 +154,20 @@ int RecevoirCom(int SerialPointer, char* Buffer)
     if(!SerialPort)
         return 0;
 
-   COMSTAT Stat;
-   DWORD Errors;
-   long nbCarALire=0;
-   long NCarLus;
+   long NbCarLus;
 
    if(SerialPort->fd==NULL)
         return 0;
-    
+
      //Reception de la Chaine
-    if((nbCarLus = Read(SerialPort->fd, Buffer, sizeof(Buffer))) < 0)
+    if((NbCarLus = read(SerialPort->fd, Buffer, sizeof(Buffer))) < 0)
     {
         return 0;
     }
 
     //Finition de la Chaine
-    Buffer[nbCarLus] = '\0';
-    return nbCarLus;
+    Buffer[NbCarLus] = '\0';
+    return NbCarLus;
 }
 
 //-----------------------------------------------------------------------

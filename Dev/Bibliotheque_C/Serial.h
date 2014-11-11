@@ -28,10 +28,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
    #ifdef WIN32
    #include "Serial_Win.c"
-   #elif UNIX
+   #else
    #include "Serial_Unix.c"
-   #elif
-   #error "OS non supporte par la bibliothèque Serial.h ..."
    #endif
 
 #endif // SERIAL_H_INCLUDED
