@@ -33,12 +33,14 @@ typedef struct Serial {
 int OuvrirCom(int NoPort, int Flags)
 {
     // On crée les variables
-    char CharPort[50] = "/dev/ttyUSB";
+    char CharPort[50] = "/dev/tty";
     char Type = Flags/100; /// Si la centaine vaut 1, c'est ttyUSB. Sinon, c'est ttyS.
-    if(Type)
-        sprintf(CharPort, "/dev/ttyUSB%d", NoPort);
-    else
+    if(Type==1)
         sprintf(CharPort, "/dev/ttyS%d", NoPort);
+    else if(Type==2)
+	sprintf(CharPort, "/dev/ttyUSB%d", NoPort);
+    else
+        sprintf(CharPort, "/dev/ttyACM%d", NoPort);
 
     // On ouvre le port série
     Serial *SerialPort = malloc(sizeof(Serial));
@@ -47,6 +49,11 @@ int OuvrirCom(int NoPort, int Flags)
 
     SerialPort->NoCOM=NoPort;
     SerialPort->fd = open(CharPort, O_RDWR) ;
+    if(SerialPort->fd<0)
+    {
+	free(SerialPort);
+	return 0;
+    }
 
     // On récupère les paramètres du port série
     struct termios options;
@@ -59,54 +66,56 @@ int OuvrirCom(int NoPort, int Flags)
     switch(Flags)
     {
         case 1:
-        cfsetispeed(&options, B4800);
-        cfsetospeed(&options, B4800);
+        if(cfsetspeed(&options, B4800))
+	return 0;
         break;
 
         case 2:
-        cfsetispeed(&options, B9600);
-        cfsetospeed(&options, B9600);
+        if(cfsetspeed(&options, B9600))
+	return 0;
         break;
 
         case 3:
-        cfsetispeed(&options, B19200);
-        cfsetospeed(&options, B19200);
+        if(cfsetspeed(&options, B19200))
+	return 0;
         break;
 
         case 4:
-        cfsetispeed(&options, B38400);
-        cfsetospeed(&options, B38400);
+        if(cfsetspeed(&options, B38400))
+	return 0;
         break;
 
         case 5:
-        cfsetispeed(&options, B57600);
-        cfsetospeed(&options, B57600);
+        if(cfsetspeed(&options, B57600))
+	return 0;
         break;
 
         case 6:
-        cfsetispeed(&options, B115200);
-        cfsetospeed(&options, B115200);
+        if(cfsetspeed(&options, B115200))
+	return 0;
         break;
 
         case 7:
-        cfsetispeed(&options, B230400);
-        cfsetospeed(&options, B230400);
+        if(cfsetspeed(&options, B230400))
+	return 0;
         break;
 
         case 8:
-        cfsetispeed(&options, B460800);
-        cfsetospeed(&options, B460800);
+        if(cfsetspeed(&options, B460800))
+	return 0;
         break;
 
         case 9:
-        cfsetispeed(&options, B921600);
-        cfsetospeed(&options, B921600);
+        if(cfsetspeed(&options, B921600))
+	return 0;
         break;
 
         default:
-        cfsetispeed(&options, B9600);
-        cfsetospeed(&options, B9600);
+        if(cfsetspeed(&options, B9600))
+	return 0;
     }
+
+
 
     // On enregistre les paramètres
     tcsetattr(SerialPort->fd, TCSANOW, &options);
@@ -132,7 +141,7 @@ int EnvoyerCom(const char* Message, int SerialPointer)
         return 1;
 
     // Emission du message
-    tcflush(SerialPort->fd, TCIOFLUSH);
+    tcflush(SerialPort->fd, TCOFLUSH);
     if(write(SerialPort->fd, Message, TailleChaine) < 0)
     {
         return -1;

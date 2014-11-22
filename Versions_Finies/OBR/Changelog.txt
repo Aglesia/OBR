@@ -18,13 +18,21 @@ Première version, non fonctionnelle
 - Ajout de la détection de déconnexion série, et déconnexion auto de l'administrateur
 
 0.4 :
+- Ajout des fonctions de gestion des E/S dans le noyau
+- prise en compte des limites imposées dans les sorties PWM
+- Mise à jour auto des valeurs des E/S
+- Suppression de la pause de 5ms entre chaque boucle
+- Réorganisation du code et séparration des fonctions du noyau, des autres fonctions
+- Ajout de deux fonctions (user_setup et user_loop) modifiable par l'utilisateur
+
+0.5 :
 - WatchDog plus intelligent, évite la surcharge du réseau lorsque ça discute
 - Mise en place de la configuration des cartes d'extension via les ports série, permettant de les utiliser
-- Centralisation du pilotage des cartes, via le maitre si connecté
+- Centralisation du pilotage des cartes, via le maitre
 - Mise en place des codes d'erreur dans le noyau du système
 - Mise en place des fonctions de copie RAM->EEPROM et EEPROM->RAM, contenant les données de fonctionnement (liste des moteurs, capteurs...)
 
-0.5 :
+0.6 :
 - Ajout des fonctions de mise en place des périphériques (moteurs, capteurs...)
 - Ajout de toutes les commandes de pilotage
 - Gestion du pilotage des autres cartes
