@@ -1,0 +1,17 @@
+V0.1 :
+- Première version (non utilisable), basée sur le noyau OBR v0.5
+- Utilise le protocole de communication OBR3
+
+v0.6 :
+- Version basée sur le noyau OBR v0.6
+- Première version utilisable
+
+v0.7 :
+
+v0.8 :
+
+v0.9 :
+- Passage au protocole de communication OBR4
+
+v1.0 :
+- Première version finale
