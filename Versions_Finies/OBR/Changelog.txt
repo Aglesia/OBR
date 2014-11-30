@@ -46,19 +46,21 @@
 - Renommage des fonctions du noyau
 
 0.7 :
-- Centralisation du pilotage des cartes, via le maitre
-- Mise en place des liens entre toutes les cartes
-- Gestion autonome en cas de coupure entre deux cartes (les liens rompus bloquent l'activation des sorties concernées)
+- Changement de la gestion des numéro de PWM : maintenant on envoie son n° de PIN (et non plus n°PWM) en paramètre
+- La liaison entre le PIN 12 et 13 au démarrage réinitialise le mot de passe, mais aussi toutes les configurations
+- WatchDog plus intelligent, évite la surcharge du réseau lorsque ça discute
 
 0.8 :
 - Gestion centralisée par le maitre, on peut configurer une E/S d'une autre carte, en passant par le maître
 - Gestion améliorée de la batterie (& commande suplémentaire pour gérer la batterie)
-- WatchDog plus intelligent, évite la surcharge du réseau lorsque ça discute
+- Mise en place des liens entre toutes les cartes
+- Correction du BUG qui laisse la LED 13 allumée quand on la déconnecte
 
 0.9 :
-- Correction du BUG qui laisse la LED 13 allumée quand on la déconnecte
-- Changement de la gestion des numéro de PWM : maintenant on envoie son n° de PIN (et non plus n°PWM) en paramètre
 - Compression des fonctions, et optimisation du code (le rendant compatible avec un arduino UNO)
+- Gestion autonome en cas de coupure entre deux cartes (les liens rompus bloquent l'activation des sorties concernées)
+- Passage au protocole OBR4
+- Le WatchDog sur les connexions série ne peut plus être coupé
 
 1.0 :
 - Première version finale
@@ -82,3 +84,4 @@ OBR4 :
 - Meilleur gestion des connexions sur tout le réseau : connexion et déconnexion à chaud sans aucune difficultée
 - Gestion des numéros de PIN identique entre les E/S et les PWM (ce n'est plus le numéro PWM qui est envoyé en paramètre, mais le numéro PIN)
 - Ajout de mots de passe d'utilisation entre Maitre et Esclaves (évite le contrôle non autorisé par un esclave ou un maitre)
+- Watchdog non désactivable
