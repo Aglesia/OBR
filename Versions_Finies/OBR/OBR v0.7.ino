@@ -312,6 +312,9 @@ void Executer_Commande_Recue()
   {
     Mode = PILOTAGE;
     Reponse="PILOTAGE";
+
+    // On déconnecte l'admin
+    Connecte = 0;
   }
 
   // On demande à passer en mode de configuration
@@ -586,6 +589,10 @@ void Executer_Commande_Recue()
           Ecrire_RAM(MIN_PWM, param1.toInt(), 0);
           Ecrire_RAM(MAX_PWM, param1.toInt(), 0);
 
+          // Si c'est le PIN 13, on le rend au système
+          if(param1.toInt()==13)
+            Changer_Mode_PIN_ES(13, SYSTEME);
+
           // On supprime les liens
           Ecrire_RAM(TYPE_LIAISON_ANALOG, param1.toInt(), 0);
           Ecrire_RAM(TYPE_LIAISON_1, param1.toInt(), 0);
@@ -696,6 +703,10 @@ void Executer_Commande_Recue()
             // On indique un PIN vide
             Changer_Mode_PIN_ES(param1.toInt(), VIDE);
 
+            // Si c'est le PIN 13, on le rend au système
+            if(param1.toInt()==13)
+              Changer_Mode_PIN_ES(13, SYSTEME);
+
             // On supprime les liens
             Ecrire_RAM(TYPE_LIAISON_ANALOG, param1.toInt(), 0);
             Ecrire_RAM(TYPE_LIAISON_1, param1.toInt(), 0);
@@ -760,6 +771,10 @@ void Executer_Commande_Recue()
           {
             // On indique un PIN vide
             Changer_Mode_PIN_ES(param1.toInt(), VIDE);
+
+            // Si c'est le PIN 13, on le rend au système
+            if(param1.toInt()==13)
+              Changer_Mode_PIN_ES(13, SYSTEME);
 
             // On supprime les liens
             Ecrire_RAM(TYPE_LIAISON_ANALOG, param1.toInt(), 0);
@@ -2494,20 +2509,20 @@ void SYS_Verification_Connexions()
 // Chien de garde pour la déconnexion automatique des ports séries
 void SYS_WatchDog_Serie()
 {
-  // Si ça fait plus de 2 secondes qu'on a pas envoyé un signal au chien de garde des autres cartes, on l'envoie
-  if(DernierTempsMaitre_Envoie > 20)
+  // Si ça fait plus de 0.3 secondes qu'on a pas envoyé un signal au chien de garde des autres cartes, on l'envoie
+  if(DernierTempsMaitre_Envoie > 3)
   {
     DernierTempsMaitre_Envoie = 0;
     Envoyer_Message(MAITRE, "=");
   }
 
-  if(DernierTempsEsclave1_Envoie > 20)
+  if(DernierTempsEsclave1_Envoie > 3)
   {
     DernierTempsEsclave1_Envoie = 0;
     Envoyer_Message(EXTENSION1, "=");
   }
 
-  if(DernierTempsEsclave2_Envoie > 20)
+  if(DernierTempsEsclave2_Envoie > 3)
   {
     DernierTempsEsclave2_Envoie = 0;
     Envoyer_Message(EXTENSION2, "=");
@@ -2530,8 +2545,8 @@ void SYS_WatchDog_Serie()
   if(!watchdogActif)
     return;
 
-  // On vérifie que ça fait moins de 5 secondes pour tout le monde
-  if(DernierTempsPC > 50)
+  // On vérifie que ça fait moins de 1 seconde pour tout le monde
+  if(DernierTempsPC > 10)
   {
     // On déconnecte l'admin, et le PC
     Connecte = 0;
@@ -2539,16 +2554,16 @@ void SYS_WatchDog_Serie()
     Ordinateur = 0;
   }
 
-  if(DernierTempsTelecommande > 50)
+  if(DernierTempsTelecommande > 10)
     Telecommande = 0;
 
-  if(DernierTempsMaitre > 50)
+  if(DernierTempsMaitre > 10)
     Carte_Maitre = 0;
 
-  if(DernierTempsEsclave1 > 50)
+  if(DernierTempsEsclave1 > 10)
     Extension1 = 0;
 
-  if(DernierTempsEsclave2 > 50)
+  if(DernierTempsEsclave2 > 10)
     Extension2 = 0;
 }
 

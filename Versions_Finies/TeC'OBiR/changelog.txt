@@ -16,7 +16,7 @@
 
 1.2
 - réécriture du noyau
-- Adaptation au nouveau protocole OBR 0.3
+- Adaptation au nouveau protocole OBR 3
 - Prise en compte des adresses
 
 1.27
@@ -26,3 +26,12 @@
 - Ajout du choix de l'adresse destinatrice (Commande sous forme "add:OBR_COMMANDE-PARAMS" ex : pour connaitre le nom du maitre, "M:OBR_NOM")
 - Ajout de l'adresse émetrice dans la réponse
 - Séparation du code TeC'OBiR et de la bibliothèque OBR_Communication
+
+1.4
+- Passage à l'essai des 50 premier ports séries
+- Adaptation au protocole OBR 4, qui inclus un watchdog obligatoire sur la connexion série
+- Ajout d'un thread pour la gestion du watchdog
+
+1.5
+- Prise en charge des fichiers de config .map
+- Peut etre ouvert avec, comme parametre, un fichier .map. La configuration auto se fera dès que la connexion est effectuée

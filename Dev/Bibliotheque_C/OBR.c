@@ -22,7 +22,18 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <pthread.h>
+
 #define Debug 0
+
+#ifdef __WIN32__
+    #include <windows.h>
+    #define Sleep(n) Sleep(n)
+
+#else /*Le reste, UNIX en particulier*/
+    #include <unistd.h>
+    #define Sleep(n) usleep(n)
+#endif
 
 /// Demande à l'arduino une connexion, en précisant si on doit se faire passer pour un PC (Configuration) ou une télécommande (Pilotage), retourne l'adresse de la Commande_OBR si connecté
 int OBR_Connecter(int NoPort, int TypePeripherique)
@@ -35,12 +46,17 @@ int OBR_Connecter(int NoPort, int TypePeripherique)
     if(!PortOBR)
         return 0;
 
+    /// On affiche que la connexion est faite, si on est en débug
+    if(Debug)
+	printf("Connecte au port %d\n", NoPort);
+
     /// On crée une Commande_OBR
     Commande_OBR *Commande = malloc(sizeof(Commande_OBR));
     if(!Commande)
         return -1;
 
     Commande->PortArduino = PortOBR;
+    Commande->WatchdogLance = 0;
 
     /// On vérifie la présence de l'OBR sur l'arduino
     // On vide le buffer d'entrée
@@ -89,6 +105,13 @@ int OBR_Connecter(int NoPort, int TypePeripherique)
     if(Debug)
         printf("Nom : %s\n", Commande->Nom);
 
+    /// On initialise le mutex
+    Commande->mutex = PTHREAD_MUTEX_INITIALIZER;
+
+    /// Si la version est plus grande que la 0.7, on lance le watchdog
+    if(Commande->OBR_Version >= 0.7)
+        Activer_Watchdog(Commande);
+
     /// On retourne l'adresse de la Commande_OBR
     return Commande;
 }
@@ -103,6 +126,13 @@ void OBR_Deconnecter(Commande_OBR *Commande)
     }
     else
         Envoie_Commande("OBR_DECONNECTER", Commande, Commande->MAITRE_ESCLAVE);
+
+    // On désactive le Watchdog
+    Desactiver_Watchdog(Commande);
+
+    // On supprime le mutex
+    pthread_mutex_destroy(Commande->mutex);
+
     FermerCom(Commande->PortArduino);
     free(Commande);
 }
@@ -160,6 +190,10 @@ int Recup_Commande(Commande_OBR *Commande)
     strcpy(Commande->Commande, "");
     char Buffer[130]="";
 
+    /// On attend que le mutex soit libre, et on le prend
+    if(Commande->WatchdogLance)
+        while(pthread_mutex_lock(&Commande->mutex)!=0);
+
     /// Tant qu'on a pas de "\n", ou qu'on est pas encore dans les 100ms, on attend.
     unsigned long Delay = clock();
     int ChainePrete = 0;
@@ -180,8 +214,14 @@ int Recup_Commande(Commande_OBR *Commande)
         delay(1);
     }
 
+    /// S'il n'y a rien à récupérer
     if(!ChainePrete)
+    {
+        /// On libère le mutex
+        if(Commande->WatchdogLance)
+            pthread_mutex_unlock(&Commande->mutex);
         return 1;
+    }
 
     /// On séparre la commande, des adresses
     strcpy(Buffer, Commande->Commande);
@@ -190,12 +230,25 @@ int Recup_Commande(Commande_OBR *Commande)
     /// On laisse le temps au système pour ne pas le surcharger
     delay(5);
 
+    /// on libère le mutex
+    if(Commande->WatchdogLance)
+        pthread_mutex_unlock(&Commande->mutex);
+
     return 0;
 }
 
 void Envoie_Commande(char* Message, Commande_OBR *Commande, int NoDestinataire)
 {
     char *Char = NULL, Temp[130]="";
+
+    /// On attend que le mutex soit libéré et on le prend
+    if(Debug)
+        printf("Envoie Message : ");
+    if(Commande->WatchdogLance)
+        while(pthread_mutex_lock(&Commande->mutex)!=0);
+    if(Debug)
+        printf("En cours... ");
+
     /// Si on ne demande pas à quitter
     if(strcmp(Message, "EXIT"))
     {
@@ -270,20 +323,79 @@ void Envoie_Commande(char* Message, Commande_OBR *Commande, int NoDestinataire)
         /// On envoie la commande
         EnvoyerCom(Commande->Commande, Commande->PortArduino);
 
+        // On met à jour le temps Watchdog
+        Commande->Temps_WatchDog = clock();
+
         /// On laisse le temps au système pour ne pas le surcharger
         delay(5);
     }
+    /// On débloque le mutex
+    if(Commande->WatchdogLance)
+        pthread_mutex_unlock(&Commande->mutex);
+    if(Debug)
+        printf("FAIT !\n");
 }
 
 void MaintenirConnexion(Commande_OBR *Commande)
 {
+    if(Debug)
+        printf("Watchdog actif\n");
+    Commande->Temps_WatchDog = clock();
+    char Message[10] = "";
+    /// boucle infinie, arrêtée lorsqu'on arrête le WatchDog
+    while(Commande->WatchdogLance)
+    {
+        /// On verrouille le mutex
+        if(Debug)
+            printf("Lock Mutex...\n");
+        if(pthread_mutex_lock(&Commande->mutex)==0)
+        {
+            if(Debug)
+                printf("Mutex locked...\n");
+            // Si on doit envoyer un message de watchdog, on l'envoie
+            if((clock() - Commande->Temps_WatchDog)>=500)
+            {
+                // On envoie le message
+                sprintf(Message, "[%d|%d]=\n", Commande->TELECOMMANDE_PC, Commande->MAITRE_ESCLAVE);
+                EnvoyerCom(Message, Commande->PortArduino);
 
+                // On met à jour le temps Watchdog
+                Commande->Temps_WatchDog = clock();
+            }
+
+            // On libère le mutex
+            pthread_mutex_unlock(&Commande->mutex);
+            if(Debug)
+            printf("Unlock Mutex...\n");
+
+            // On attend une seconde
+            delay(250);
+        }
+    }
+    if(Debug)
+        printf("WatchDog inactif\n");
+    return;
+}
+
+int Activer_Watchdog(Commande_OBR *Commande)
+{
+    // On crée le nouveau tread, et on l'enregistre dans la Commande_OBR
+    pthread_t thread;
+    Commande->WatchdogLance = 1;
+    if(!pthread_create(&thread, NULL, MaintenirConnexion, Commande))
+        Commande->Tread = thread;
+    else
+        Commande->WatchdogLance = 0;
+}
+
+void Desactiver_Watchdog(Commande_OBR *Commande)
+{
+    Commande->WatchdogLance = 0;
+    pthread_exit(&Commande->Tread);
 }
 
 void delay(int millis)
 {
-    double InitTime = clock();
-    double DelayTime = InitTime+millis;
-    while(DelayTime>clock());
+    Sleep(millis);
     return;
 }

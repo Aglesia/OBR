@@ -20,7 +20,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 //////////////////////////////////////////// A FAIRE
 // - Gestion des centaines dans les numéros de PIN (pour différencier les cartes), le PIN 255 pointe vers rien !
-// - Numéro PWM en commande devient son numéro de PIN !
 // - Vérifier la gestion de vitesse de transition
 // - Centraliser toutes les communications via le maitre
 //////////////////////////////////////////// A FAIRE
@@ -47,7 +46,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 // Constantes
 // Version du micrologiciel
-#define VERSION 0.6
+#define VERSION 0.7
 // Session
 #define CONFIGURATION 0
 #define PILOTAGE 1
@@ -80,10 +79,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define TYPE_LIAISON_3 13
 #define VALEUR_ACTU_ANALOG 14
 #define VALEUR_ACTU_ES 15
-#define VALEUR_ACTU_PWM 16
-#define VITESSE_TRANSITION_PWM 17
-#define VALEUR_VOULUE_PWM 18
-#define VALEUR_VOULUE_ES 19
+#define VITESSE_TRANSITION_PWM 16
+#define VALEUR_VOULUE_ES 17
 
 // Définition des données selon la carte
 #if (TYPE_DE_CARTE==_NANO)
@@ -97,15 +94,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define PWM3 9
 #define PWM4 10
 #define PWM5 11
-#define PWM6 0
-#define PWM7 0
-#define PWM8 0
-#define PWM9 0
-#define PWM10 0
-#define PWM11 0
-#define PWM12 0
-#define PWM13 0
-#define PWM14 0
+#define PWM6 255
+#define PWM7 255
+#define PWM8 255
+#define PWM9 255
+#define PWM10 255
+#define PWM11 255
+#define PWM12 255
+#define PWM13 255
+#define PWM14 255
 #elif (TYPE_DE_CARTE==_MICRO)
 #define NB_PIN_IO 20
 #define NB_PIN_PWM 7
@@ -118,14 +115,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define PWM4 10
 #define PWM5 11
 #define PWM6 13
-#define PWM7 0
-#define PWM8 0
-#define PWM9 0
-#define PWM10 0
-#define PWM11 0
-#define PWM12 0
-#define PWM13 0
-#define PWM14 0
+#define PWM7 255
+#define PWM8 255
+#define PWM9 255
+#define PWM10 255
+#define PWM11 255
+#define PWM12 255
+#define PWM13 255
+#define PWM14 255
 #elif (TYPE_DE_CARTE==_UNO)
 #define NB_PIN_IO 14
 #define NB_PIN_PWM 6
@@ -137,15 +134,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define PWM3 9
 #define PWM4 10
 #define PWM5 11
-#define PWM6 0
-#define PWM7 0
-#define PWM8 0
-#define PWM9 0
-#define PWM10 0
-#define PWM11 0
-#define PWM12 0
-#define PWM13 0
-#define PWM14 0
+#define PWM6 255
+#define PWM7 255
+#define PWM8 255
+#define PWM9 255
+#define PWM10 255
+#define PWM11 255
+#define PWM12 255
+#define PWM13 255
+#define PWM14 255
 #elif (TYPE_DE_CARTE==_MEGA)
 #define NB_PIN_IO 54
 #define NB_PIN_PWM 15
@@ -197,6 +194,11 @@ byte DernierTempsTelecommande = 0;
 byte DernierTempsMaitre = 0;
 byte DernierTempsEsclave1 = 0;
 byte DernierTempsEsclave2 = 0;
+byte DernierTempsPC_Envoie = 0; // Temps en 1/10 de seconde depuis le dernier envoie
+byte DernierTempsTelecommande_Envoie = 0;
+byte DernierTempsMaitre_Envoie = 0;
+byte DernierTempsEsclave1_Envoie = 0;
+byte DernierTempsEsclave2_Envoie = 0;
 unsigned long DernierTempsWatchdog = 0; // Temps en ms de la dernière actualisation du chien de garde
 // Administration
 byte Connecte = 0; // Indique si on est connecté en administrateur (accès à certaines commandes)
@@ -310,6 +312,9 @@ void Executer_Commande_Recue()
   {
     Mode = PILOTAGE;
     Reponse="PILOTAGE";
+
+    // On déconnecte l'admin
+    Connecte = 0;
   }
 
   // On demande à passer en mode de configuration
@@ -538,24 +543,28 @@ void Executer_Commande_Recue()
     }
 
     // On configure un moteur
-    if(Commande=="OBR_CONNECTER_MOTEUR")
+    if(Commande=="OBR_CONNECTER_MOTEUR" || Commande=="OBR_CONNECTER_SERVO")
     {
       if(Connecte)
       {
         // On vérifie le Numéro du PIN et les MIN et MAX
-        if(param1.toInt()>=NB_PIN_PWM || param2.toInt()>255 || param3.toInt()>255 || param2.toInt()>param3.toInt())
+        if(No_PWM_PIN(param1.toInt())>NB_PIN_PWM || param2.toInt()>255 || param3.toInt()>255 || param2.toInt()>param3.toInt())
           Ecrire_Erreur(110030);
         else
         {
-          // On configure le PIN en MOTEUR
-          Changer_Mode_PIN_ES(No_PIN_PWM(param1.toInt()), MOTEUR);
+          if(Commande=="OBR_CONNECTER_MOTEUR")
+            // On configure le PIN en MOTEUR
+            Changer_Mode_PIN_ES(param1.toInt(), MOTEUR);
+          else
+            // On configure le PIN en SERVO
+            Changer_Mode_PIN_ES(param1.toInt(), SERVO);
 
           // On indique ses limites
           Ecrire_RAM(MIN_PWM, param1.toInt(), param2.toInt());
           Ecrire_RAM(MAX_PWM, param1.toInt(), param3.toInt());
 
           // On enregistre en EEPROM
-          SYS_Ecrire_Donnees_Vers_EEPROM(No_PIN_PWM(param1.toInt()), 0);
+          SYS_Ecrire_Donnees_Vers_EEPROM(param1.toInt(), 0);
 
           // On envoie une confirmation
           Reponse="OK";
@@ -566,33 +575,37 @@ void Executer_Commande_Recue()
     }
 
     // Déconnecte un moteur
-    if(Commande=="OBR_DECONNECTER_MOTEUR")
+    if(Commande=="OBR_DECONNECTER_MOTEUR" || Commande=="OBR_DECONNECTER_SERVO")
     {
       if(Connecte)
       {
         // On vérifie le numéro du PIN
-        if(param1.toInt()>=NB_PIN_PWM || Lire_RAM(TYPE_ES, No_PIN_PWM(param1.toInt()))!=MOTEUR)
+        if(No_PWM_PIN(param1.toInt())>NB_PIN_PWM || (Lire_RAM(TYPE_ES, param1.toInt())!=MOTEUR && Commande=="OBR_DECONNECTER_MOTEUR") || (Lire_RAM(TYPE_ES, param1.toInt())!=SERVO) && Commande=="OBR_DECONNECTER_SERVO")
           Ecrire_Erreur(130020);
         else
         {
           // On indique un PIN vide et on vide les MIN et MAX
-          Changer_Mode_PIN_ES(No_PIN_PWM(param1.toInt()), VIDE);
+          Changer_Mode_PIN_ES(param1.toInt(), VIDE);
           Ecrire_RAM(MIN_PWM, param1.toInt(), 0);
           Ecrire_RAM(MAX_PWM, param1.toInt(), 0);
 
-          // On supprime les liens
-          Ecrire_RAM(TYPE_LIAISON_ANALOG, No_PIN_PWM(param1.toInt()), 0);
-          Ecrire_RAM(TYPE_LIAISON_1, No_PIN_PWM(param1.toInt()), 0);
-          Ecrire_RAM(TYPE_LIAISON_2, No_PIN_PWM(param1.toInt()), 0);
-          Ecrire_RAM(TYPE_LIAISON_3, No_PIN_PWM(param1.toInt()), 0);
+          // Si c'est le PIN 13, on le rend au système
+          if(param1.toInt()==13)
+            Changer_Mode_PIN_ES(13, SYSTEME);
 
-          Ecrire_RAM(LIAISON_ANALOG, No_PIN_PWM(param1.toInt()), 255);
-          Ecrire_RAM(LIAISON_1, No_PIN_PWM(param1.toInt()), 255);
-          Ecrire_RAM(LIAISON_2, No_PIN_PWM(param1.toInt()), 255);
-          Ecrire_RAM(LIAISON_3, No_PIN_PWM(param1.toInt()), 255);
+          // On supprime les liens
+          Ecrire_RAM(TYPE_LIAISON_ANALOG, param1.toInt(), 0);
+          Ecrire_RAM(TYPE_LIAISON_1, param1.toInt(), 0);
+          Ecrire_RAM(TYPE_LIAISON_2, param1.toInt(), 0);
+          Ecrire_RAM(TYPE_LIAISON_3, param1.toInt(), 0);
+
+          Ecrire_RAM(LIAISON_ANALOG, param1.toInt(), 255);
+          Ecrire_RAM(LIAISON_1, param1.toInt(), 255);
+          Ecrire_RAM(LIAISON_2, param1.toInt(), 255);
+          Ecrire_RAM(LIAISON_3, param1.toInt(), 255);
 
           // On enregistre le tout en EEPROM
-          SYS_Ecrire_Donnees_Vers_EEPROM(No_PIN_PWM(param1.toInt()), 0);
+          SYS_Ecrire_Donnees_Vers_EEPROM(param1.toInt(), 0);
 
           // On envoie une confirmation
           Reponse="OK";
@@ -652,71 +665,6 @@ void Executer_Commande_Recue()
         Ecrire_Erreur(130010);
     }
 
-    // Connecte un servomoteur
-    if(Commande=="OBR_CONNECTER_SERVO")
-    {
-      if(Connecte)
-      {
-        // On vérifie le Numéro du PIN et les MIN et MAX
-        if(param1.toInt()>=NB_PIN_PWM || param2.toInt()>255 || param3.toInt()>255 || param2.toInt()>param3.toInt())
-          Ecrire_Erreur(110030);
-        else
-        {
-          // On configure le PIN en SERVO
-          Changer_Mode_PIN_ES(No_PIN_PWM(param1.toInt()), SERVO);
-
-          // On indique ses limites
-          Ecrire_RAM(MIN_PWM, param1.toInt(), param2.toInt());
-          Ecrire_RAM(MAX_PWM, param1.toInt(), param3.toInt());
-
-          // On enregistre les paramètres
-          SYS_Ecrire_Donnees_Vers_EEPROM(No_PIN_PWM(param1.toInt()), 0);
-
-          // On envoie une confirmation
-          Reponse="OK";
-        }
-      }
-      else
-        Ecrire_Erreur(130010);
-    }
-
-    // Déconnecte un Servomoteur
-    if(Commande=="OBR_DECONNECTER_SERVO")
-    {
-      if(Connecte)
-      {
-        // On vérifie le numéro du PIN
-        if(param1.toInt()>=NB_PIN_PWM || Lire_RAM(TYPE_ES, No_PIN_PWM(param1.toInt()))!=SERVO)
-          Ecrire_Erreur(130020);
-        else
-        {
-          // On indique un PIN vide et on vide les MIN et MAX
-          Changer_Mode_PIN_ES(No_PIN_PWM(param1.toInt()), VIDE);
-          Ecrire_RAM(MIN_PWM, param1.toInt(), 0);
-          Ecrire_RAM(MAX_PWM, param1.toInt(), 0);
-
-          // On supprime les liens
-          Ecrire_RAM(TYPE_LIAISON_ANALOG, No_PIN_PWM(param1.toInt()), 0);
-          Ecrire_RAM(TYPE_LIAISON_1, No_PIN_PWM(param1.toInt()), 0);
-          Ecrire_RAM(TYPE_LIAISON_2, No_PIN_PWM(param1.toInt()), 0);
-          Ecrire_RAM(TYPE_LIAISON_3, No_PIN_PWM(param1.toInt()), 0);
-
-          Ecrire_RAM(LIAISON_ANALOG, No_PIN_PWM(param1.toInt()), 255);
-          Ecrire_RAM(LIAISON_1, No_PIN_PWM(param1.toInt()), 255);
-          Ecrire_RAM(LIAISON_2, No_PIN_PWM(param1.toInt()), 255);
-          Ecrire_RAM(LIAISON_3, No_PIN_PWM(param1.toInt()), 255);
-
-          // On enregistre le tout en EEPROM
-          SYS_Ecrire_Donnees_Vers_EEPROM(No_PIN_PWM(param1.toInt()), 0);
-
-          // On envoie une confirmation
-          Reponse="OK";
-        }
-      }
-      else
-        Ecrire_Erreur(130010);
-    }
-
     // Configure un PIN comme une entrée
     if(Commande=="OBR_CONNECTER_ENTREE")
     {
@@ -754,6 +702,10 @@ void Executer_Commande_Recue()
           {
             // On indique un PIN vide
             Changer_Mode_PIN_ES(param1.toInt(), VIDE);
+
+            // Si c'est le PIN 13, on le rend au système
+            if(param1.toInt()==13)
+              Changer_Mode_PIN_ES(13, SYSTEME);
 
             // On supprime les liens
             Ecrire_RAM(TYPE_LIAISON_ANALOG, param1.toInt(), 0);
@@ -819,6 +771,10 @@ void Executer_Commande_Recue()
           {
             // On indique un PIN vide
             Changer_Mode_PIN_ES(param1.toInt(), VIDE);
+
+            // Si c'est le PIN 13, on le rend au système
+            if(param1.toInt()==13)
+              Changer_Mode_PIN_ES(13, SYSTEME);
 
             // On supprime les liens
             Ecrire_RAM(TYPE_LIAISON_ANALOG, param1.toInt(), 0);
@@ -1019,7 +975,7 @@ void Executer_Commande_Recue()
       if(Connecte)
       {
         // On vérifie les paramètres
-        if(param1.toInt()>NB_PIN_PWM)
+        if(No_PWM_PIN(param1.toInt())>NB_PIN_PWM)
           Ecrire_Erreur(110031);
         else if(param2.toInt()>255)
           Ecrire_Erreur(110032);
@@ -1029,14 +985,14 @@ void Executer_Commande_Recue()
           Ecrire_Erreur(110023);
 
         // On vérifie que la sortie PWM est bien configurée en SERVO ou MOTEUR
-        else if(Lire_RAM(TYPE_ES, No_PIN_PWM(param1.toInt()))==SERVO || Lire_RAM(TYPE_ES, No_PIN_PWM(param1.toInt()))==MOTEUR)
+        else if(Lire_RAM(TYPE_ES, param1.toInt())==SERVO || Lire_RAM(TYPE_ES, param1.toInt())==MOTEUR)
         {
           // on change les paramètres
           Ecrire_RAM(MIN_PWM, param1.toInt(), param2.toInt());
           Ecrire_RAM(MAX_PWM, param1.toInt(), param3.toInt());
 
           // on les enregistre
-          SYS_Ecrire_Donnees_Vers_EEPROM(No_PIN_PWM(param1.toInt()), 0);
+          SYS_Ecrire_Donnees_Vers_EEPROM(param1.toInt(), 0);
 
           // on envoie une confirmation
           Reponse="OK";
@@ -1088,21 +1044,21 @@ void Executer_Commande_Recue()
       // On vérifie que c'est bien un moteur ou un capteur
       if(Connecte)
       {
-        if(param1.toInt()<NB_PIN_PWM)
+        if(No_PWM_PIN(param1.toInt())<NB_PIN_PWM)
         {
-          if(Lire_RAM(TYPE_ES, No_PIN_PWM(param1.toInt()))==MOTEUR || Lire_RAM(TYPE_ES, No_PIN_PWM(param1.toInt()))==SERVO)
+          if(Lire_RAM(TYPE_ES, param1.toInt())==MOTEUR || Lire_RAM(TYPE_ES, param1.toInt())==SERVO)
           {
             // On vérifie la vitesse de transmission (entre 0 et 255)
-            if(param2.toInt()>250)
+            if(param2.toInt()>250 || param2.toInt()<1)
               Ecrire_Erreur(110032);
             else
             {
               // On adapte la nouvelle valeur
-              byte Vitesse = 251 / param2.toInt();
+              byte Vitesse = 250 / param2.toInt();
               // On enregistre la nouvelle valeur
               Ecrire_RAM(VITESSE_TRANSITION_PWM, param1.toInt(), Vitesse);
               // On enregistre les paramètres
-              SYS_Ecrire_Donnees_Vers_EEPROM(No_PIN_PWM(param1.toInt()), 0);
+              SYS_Ecrire_Donnees_Vers_EEPROM(param1.toInt(), 0);
               Reponse="OK";
             }
           }
@@ -1144,15 +1100,6 @@ void Executer_Commande_Recue()
       else
         Ecrire_Erreur(110031);
     }
-    
-    // On récupère la valeur brut du servomoteur ou du moteur
-    if(Commande=="OBR_VALEUR_BRUT_SERVO" || Commande=="OBR_VALEUR_BRUT_MOTEUR")
-    {
-      if(param1.toInt()<NB_PIN_PWM)
-        Reponse=String(Lire_RAM(VALEUR_ACTU_PWM, param1.toInt()));
-      else
-        Ecrire_Erreur(110031);
-    }
 
     // On récupère la valeur brut d'une entrée/Sortie
     if(Commande=="OBR_VALEUR_BRUT_ES")
@@ -1167,24 +1114,24 @@ void Executer_Commande_Recue()
     if(Commande=="OBR_VITESSE_MOTEUR")
     {
       // On vérifie que la sortie est un moteur
-      if(Lire_RAM(TYPE_ES, No_PIN_PWM(param1.toInt()))!=MOTEUR || param1.toInt()>NB_PIN_PWM)
+      if(Lire_RAM(TYPE_ES, param1.toInt())!=MOTEUR || No_PWM_PIN(param1.toInt())>NB_PIN_PWM)
         Ecrire_Erreur(110021);
       else
       {
         // On met à jour la vitesse en tenant compte des limites
         if(param2.toInt()<Lire_RAM(MIN_PWM, param1.toInt()))
         {
-          Ecrire_RAM(VALEUR_VOULUE_PWM, param1.toInt(), Lire_RAM(MIN_PWM, param1.toInt()));
+          Ecrire_RAM(VALEUR_VOULUE_ES, param1.toInt(), Lire_RAM(MIN_PWM, param1.toInt()));
           Reponse="MIN";
         }
         else if(param2.toInt()>Lire_RAM(MAX_PWM, param1.toInt()))
         {
-          Ecrire_RAM(VALEUR_VOULUE_PWM, param1.toInt(), Lire_RAM(MAX_PWM, param1.toInt()));
+          Ecrire_RAM(VALEUR_VOULUE_ES, param1.toInt(), Lire_RAM(MAX_PWM, param1.toInt()));
           Reponse="MAX";
         }
         else
         {
-          Ecrire_RAM(VALEUR_VOULUE_PWM, param1.toInt(), param2.toInt());
+          Ecrire_RAM(VALEUR_VOULUE_ES, param1.toInt(), param2.toInt());
           Reponse="OK";
         }
       }
@@ -1194,12 +1141,12 @@ void Executer_Commande_Recue()
     if(Commande=="OBR_ARRETER_MOTEUR")
     {
       // On vérifie que la sortie est un moteur
-      if(Lire_RAM(TYPE_ES, No_PIN_PWM(param1.toInt()))!=MOTEUR || param1.toInt()>NB_PIN_PWM)
+      if(Lire_RAM(TYPE_ES, param1.toInt())!=MOTEUR || No_PWM_PIN(param1.toInt())>NB_PIN_PWM)
         Ecrire_Erreur(110021);
       else
       {
-        Ecrire_RAM(VALEUR_VOULUE_PWM, param1.toInt(), 0);
-        Ecrire_RAM(VALEUR_ACTU_PWM, param1.toInt(), 0);
+        Ecrire_RAM(VALEUR_VOULUE_ES, param1.toInt(), 0);
+        Ecrire_RAM(VALEUR_ACTU_ES, param1.toInt(), 0);
         Reponse="OK";
       }
     }
@@ -1208,17 +1155,17 @@ void Executer_Commande_Recue()
     if(Commande=="OBR_POSITION_SERVO")
     {
       // On vérifie que la sortie est un servomoteur
-      if(Lire_RAM(TYPE_ES, No_PIN_PWM(param1.toInt()))!=SERVO || param1.toInt()>NB_PIN_PWM)
+      if(Lire_RAM(TYPE_ES, param1.toInt())!=SERVO || No_PWM_PIN(param1.toInt())>NB_PIN_PWM)
         Ecrire_Erreur(110021);
       else
       {
         // On met à jour la vitesse en tenant compte des limites
         if(param2.toInt()<Lire_RAM(MIN_PWM, param1.toInt()))
-          Ecrire_RAM(VALEUR_VOULUE_PWM, param1.toInt(), Lire_RAM(MIN_PWM, param1.toInt()));
+          Ecrire_RAM(VALEUR_VOULUE_ES, param1.toInt(), Lire_RAM(MIN_PWM, param1.toInt()));
         else if(param2.toInt()>Lire_RAM(MAX_PWM, param1.toInt()))
-          Ecrire_RAM(VALEUR_VOULUE_PWM, param1.toInt(), Lire_RAM(MAX_PWM, param1.toInt()));
+          Ecrire_RAM(VALEUR_VOULUE_ES, param1.toInt(), Lire_RAM(MAX_PWM, param1.toInt()));
         else
-          Ecrire_RAM(VALEUR_VOULUE_PWM, param1.toInt(), param2.toInt());
+          Ecrire_RAM(VALEUR_VOULUE_ES, param1.toInt(), param2.toInt());
         Reponse="OK";
       }
     }
@@ -1309,7 +1256,7 @@ void setup()
   digitalWrite(12, HIGH);
 
   if(digitalRead(13))
-    SYS_Remise_A_Zero_Mot_De_Passe();
+    SYS_Remise_A_Zero_Systeme();
 
   digitalWrite(12, LOW);
   Changer_Mode_PIN_ES(12, VIDE);
@@ -1635,9 +1582,6 @@ void SYS_Mise_A_Jour_RAM()
 byte No_PIN_PWM(byte NoPWM)
 {
   // Selon les #define, on retourne le numéro du PIN correspondant à la sortie PWM demandée
-  if(NoPWM>NB_PIN_PWM)
-    return 0;
-
   switch(NoPWM)
   {
     case 0:
@@ -1671,7 +1615,7 @@ byte No_PIN_PWM(byte NoPWM)
     case 14:
       return PWM14;
     default:
-      return 0;
+      return 255;
   }
 }
 
@@ -1702,10 +1646,6 @@ void Ecrire_RAM(byte Type, byte NumeroCase, byte Valeur)
     if(NumeroCase<NB_PIN_ANALOG && NumeroCase>=0)
       Valeur_Actu_Analog[NumeroCase] = Valeur;
     break;
-    case VALEUR_ACTU_PWM: // On met à jour le numéro de case selon le PWM demandé
-    NumeroCase = No_PIN_PWM(NumeroCase);
-    if(Lire_RAM(TYPE_ES, NumeroCase)!=MOTEUR && Lire_RAM(TYPE_ES, NumeroCase)!=SERVO)
-      break;
 
     case VALEUR_ACTU_ES:
     if(NumeroCase<NB_PIN_IO && NumeroCase>=0)
@@ -1723,13 +1663,13 @@ void Ecrire_RAM(byte Type, byte NumeroCase, byte Valeur)
     break;
 
     case MIN_PWM:
-    if(NumeroCase<NB_PIN_PWM && NumeroCase>=0)
-      Min_PWM[NumeroCase] = Valeur;
+    if(No_PWM_PIN(NumeroCase)<NB_PIN_PWM)
+      Min_PWM[No_PWM_PIN(NumeroCase)] = Valeur;
     break;
 
     case MAX_PWM:
-    if(NumeroCase<NB_PIN_PWM && NumeroCase>=0)
-      Max_PWM[NumeroCase] = Valeur;
+    if(No_PWM_PIN(NumeroCase)<NB_PIN_PWM)
+      Max_PWM[No_PWM_PIN(NumeroCase)] = Valeur;
     break;
 
     case TYPE_ES:
@@ -1778,14 +1718,9 @@ void Ecrire_RAM(byte Type, byte NumeroCase, byte Valeur)
     break;
 
     case VITESSE_TRANSITION_PWM: // Vitesse à laquelle le mouvement se fait sur le port PWM
-    if(NumeroCase<NB_PIN_PWM && NumeroCase>=0)
-      Vitesse_Transition_PWM[NumeroCase] = Valeur;
+    if(No_PWM_PIN(NumeroCase)<NB_PIN_PWM)
+      Vitesse_Transition_PWM[No_PWM_PIN(NumeroCase)] = Valeur;
     break;
-
-    case VALEUR_VOULUE_PWM:
-    NumeroCase = No_PIN_PWM(NumeroCase);
-    if(Lire_RAM(TYPE_ES, NumeroCase)!=MOTEUR && Lire_RAM(TYPE_ES, NumeroCase)!=SERVO)
-      break;
     
     case VALEUR_VOULUE_ES:
     if(NumeroCase<NB_PIN_IO && NumeroCase>=0)
@@ -1813,13 +1748,6 @@ byte Lire_RAM(byte Type, byte NumeroCase)
       return Valeur_Actu_IO[NumeroCase];
     break;
 
-    case VALEUR_ACTU_PWM: // On met à jour le numéro de case selon le PWM demandé
-    NumeroCase = No_PIN_PWM(NumeroCase);
-
-    if(NumeroCase != 0) // Retourne la veleur de la case PWM
-      return Valeur_Actu_IO[NumeroCase];
-    break;
-
     case MIN_ANALOG:
     if(NumeroCase<NB_PIN_ANALOG && NumeroCase>=0)
       return Min_Analog[NumeroCase];
@@ -1831,13 +1759,13 @@ byte Lire_RAM(byte Type, byte NumeroCase)
     break;
 
     case MIN_PWM:
-    if(NumeroCase<NB_PIN_PWM && NumeroCase>=0)
-      return Min_PWM[NumeroCase];
+    if(No_PWM_PIN(NumeroCase)<NB_PIN_PWM)
+      return Min_PWM[No_PWM_PIN(NumeroCase)];
     break;
 
     case MAX_PWM:
-    if(NumeroCase<NB_PIN_PWM && NumeroCase>=0)
-      return Max_PWM[NumeroCase];
+    if(No_PWM_PIN(NumeroCase)<NB_PIN_PWM)
+      return Max_PWM[No_PWM_PIN(NumeroCase)];
     break;
 
     case TYPE_ES:
@@ -1886,12 +1814,9 @@ byte Lire_RAM(byte Type, byte NumeroCase)
     break;
 
     case VITESSE_TRANSITION_PWM: // Vitesse à laquelle le mouvement se fait sur le port PWM
-    if(NumeroCase<NB_PIN_PWM && NumeroCase>=0)
-      return Vitesse_Transition_PWM[NumeroCase];
+    if(No_PWM_PIN(NumeroCase)<NB_PIN_PWM)
+      return Vitesse_Transition_PWM[No_PWM_PIN(NumeroCase)];
     break;
-
-    case VALEUR_VOULUE_PWM:
-    NumeroCase = No_PIN_PWM(NumeroCase);
 
     case VALEUR_VOULUE_ES:
     if(NumeroCase<NB_PIN_IO && NumeroCase>=0)
@@ -1901,34 +1826,44 @@ byte Lire_RAM(byte Type, byte NumeroCase)
     default:
     return 0;
     break;
-
-    return 0;
   }
+  return 0;
 }
 
 // Fonctions de controle du robot
 // Fonction de mise à jour des sorties, selon la RAM
 void SYS_Mise_A_Jour_Des_ES()
 {
-  // On lit le tableau des PWM, on regarde si on doit (et peut) activer une sortie, et on l'active
   byte i = 0;
-  for(i=0; i<NB_PIN_PWM; i++)
-  {
-    if(Lire_RAM(TYPE_ES, No_PIN_PWM(i))==SERVO || Lire_RAM(TYPE_ES, No_PIN_PWM(i))==MOTEUR)
-      analogWrite(No_PIN_PWM(i), SYS_Autoriser_Sortie(No_PIN_PWM(i)));
-  }
 
   // On lit le tableau des sorties, on regarde si on doit (et peut) activer une sortie, et on l'active
   for(i=0; i<NB_PIN_IO; i++)
   {
     // On regarde si c'est une sortie non PWM
-    if(Lire_RAM(TYPE_ES, i)==SORTIE)
-      digitalWrite(i, SYS_Autoriser_Sortie(i));
+    switch(Lire_RAM(TYPE_ES, i))
+    {
+      case MOTEUR:
+      case SERVO:
+      analogWrite(i, SYS_Autoriser_Sortie(i));
+      break;
 
-    // Si c'est un PIN vide, on le met à 0
-    if(Lire_RAM(TYPE_ES, i)==VIDE)
+      case SORTIE:
+      digitalWrite(i, SYS_Autoriser_Sortie(i));
+      break;
+
+      // Si c'est un PIN vide, on le met à 0
+      case VIDE:
       digitalWrite(i, 0);
+      break;
+
+      default:
+      break;
+    }
   }
+
+  // Si ça fait plus de 10 millisecondes qu'on a actualisé tous les moteurs, on les réactualise
+  if(DernierTempsTransitionPWM<millis()-10)
+      DernierTempsTransitionPWM+=10;
 
   // Gestion différente pour le PIN 13, s'il est utilisé par le système
   if(Lire_RAM(TYPE_ES, 13)==SYSTEME || Lire_RAM(TYPE_ES, 13)==VIDE)
@@ -1975,12 +1910,11 @@ byte SYS_Autoriser_Sortie(byte NumeroSortie)
     // On regarde la vitesse de transition
     byte VitesseVoulue = Lire_RAM(VALEUR_VOULUE_ES, NumeroSortie);
     byte VitesseActu = Lire_RAM(VALEUR_ACTU_ES, NumeroSortie);
-    byte VitesseTransition = Lire_RAM(VITESSE_TRANSITION_PWM, No_PWM_PIN(NumeroSortie));
+    byte VitesseTransition = Lire_RAM(VITESSE_TRANSITION_PWM, NumeroSortie);
 
-    // Si ça fait plus de 10 ms qu'on a pas auctualisé, on actualise
+    // Si ça fait plus de 10 ms qu'on a pas actualisé, on actualise
     if(DernierTempsTransitionPWM<millis()-10)
     {
-      DernierTempsTransitionPWM+=10;
       // Si on doit accélérer
       if(VitesseActu<VitesseVoulue)
         if(VitesseActu<VitesseVoulue-VitesseTransition)
@@ -1996,12 +1930,9 @@ byte SYS_Autoriser_Sortie(byte NumeroSortie)
           VitesseActu = VitesseVoulue;
     }
 
-    // On met à jour la nouvelle vitesse/valeur
-    Ecrire_RAM(VALEUR_ACTU_ES, NumeroSortie, VitesseActu);
-
     // On regarde les limites
-    byte MIN = Lire_RAM(MIN_PWM, No_PWM_PIN(NumeroSortie));
-    byte MAX = Lire_RAM(MAX_PWM, No_PWM_PIN(NumeroSortie));
+    byte MIN = Lire_RAM(MIN_PWM, NumeroSortie);
+    byte MAX = Lire_RAM(MAX_PWM, NumeroSortie);
     if(Lire_RAM(VALEUR_ACTU_ES, NumeroSortie)<MIN && Lire_RAM(VALEUR_ACTU_ES, NumeroSortie)!=0) // On met au minimum sauf s'il est carément arrêté
     {
       Valeur = MIN;
@@ -2014,6 +1945,8 @@ byte SYS_Autoriser_Sortie(byte NumeroSortie)
       Ecrire_RAM(VALEUR_ACTU_ES, NumeroSortie, Valeur);
       return Valeur;
     }
+    // On met à jour la nouvelle vitesse/valeur
+    Ecrire_RAM(VALEUR_ACTU_ES, NumeroSortie, VitesseActu);
     return VitesseActu;
   }
 
@@ -2101,25 +2034,11 @@ void Ecrire_PIN_ES(byte PIN, boolean Etat)
     return;
 
   // On vérifie que c'est une sortie
-  if(Type_ES[PIN]!=SORTIE && Type_ES[PIN]!=SYSTEME)
+  if(Type_ES[PIN]==VIDE || Type_ES[PIN]==SYSTEME || Type_ES[PIN]==ENTREE)
     return;
 
   // On écrit la donnée en RAM
   Ecrire_RAM(VALEUR_VOULUE_ES, PIN, Etat);
-}
-
-// Fonction d'écriture sur les ports PWM
-void Ecrire_PIN_PWM(byte PWM, byte Valeur)
-{
-  if(PWM<0 || PWM>=NB_PIN_PWM)
-    return;
-
-  // On vérifie que c'est une sortie
-  if(Type_ES[PWM]!=MOTEUR && Type_ES[PWM]!=SERVO)
-    return;
-  
-  // On écrit la donnée en RAM
-  Ecrire_RAM(VALEUR_VOULUE_PWM, PWM, Valeur);
 }
 
 // Fonction de changement de mode d'une E/S
@@ -2156,7 +2075,7 @@ void Changer_Mode_PIN_ES(byte PIN, byte Mode)
 
 // Fonctions de gestion du mot de passe
 // Fonction de reinitialisation du mot de passe
-void SYS_Remise_A_Zero_Mot_De_Passe()
+void SYS_Remise_A_Zero_Systeme()
 {
   digitalWrite(12, LOW);
   digitalWrite(13, HIGH);
@@ -2164,6 +2083,17 @@ void SYS_Remise_A_Zero_Mot_De_Passe()
   Password = 2560;
   // On écrit dans l'EEPROM
   SYS_Ecrire_Mot_De_Passe(2560);
+
+  // On initialise les tableaux
+  SYS_Initialiser_Tableaux_RAM();
+
+  // On vide l'EEPROM
+  unsigned long i = 0;
+  for(i=100; i<(100+(2*NB_PIN_ANALOG)+(6*NB_PIN_IO)+(3*NB_PIN_PWM)); i++)
+    EEPROM.write(i, 0);
+
+  for(i=0; i<NB_PIN_IO; i++)
+    SYS_Ecrire_Donnees_Vers_EEPROM(i, 0);
 }
 
 // Fonction de lecture du mot de passe depuis l'EEPROM
@@ -2425,6 +2355,25 @@ void SYS_Transferer_Message(String Message)
     Serial.println(Message);
   #endif
 
+  // On indique au chien de garde qu'on a envoyé le message
+  switch(Type)
+  {
+    case MAITRE:
+    DernierTempsMaitre_Envoie = 0;
+    break;
+
+    case EXTENSION1:
+    DernierTempsEsclave1_Envoie = 0;
+    break;
+
+    case EXTENSION2:
+    DernierTempsEsclave2_Envoie = 0;
+    break;
+
+    default:
+    break;
+  }
+
   // On envoie sur le bon port série
   switch(Port)
   {
@@ -2560,41 +2509,23 @@ void SYS_Verification_Connexions()
 // Chien de garde pour la déconnexion automatique des ports séries
 void SYS_WatchDog_Serie()
 {
-  // Si ça fait plus de 2 secondes qu'on a pas envoyé un signal au chien de garde des autres cartes, on l'envoie
-  switch(MAITRE_ESCLAVE) // On utilise la variable inutilisée pour stocker le temps
+  // Si ça fait plus de 0.3 secondes qu'on a pas envoyé un signal au chien de garde des autres cartes, on l'envoie
+  if(DernierTempsMaitre_Envoie > 3)
   {
-    case MAITRE:
-    {
-      if(DernierTempsMaitre < 20)
-        break;
-      DernierTempsMaitre = 0;
-      Envoyer_Message(EXTENSION1, "=");
-      Envoyer_Message(EXTENSION2, "=");
-    }
-    break;
+    DernierTempsMaitre_Envoie = 0;
+    Envoyer_Message(MAITRE, "=");
+  }
 
-    case ESCLAVE1:
-    {
-      if(DernierTempsEsclave1 < 20)
-        break;
-      DernierTempsEsclave1 = 0;
-      Envoyer_Message(MAITRE, "=");
-      Envoyer_Message(EXTENSION2, "=");
-    }
-    break;
+  if(DernierTempsEsclave1_Envoie > 3)
+  {
+    DernierTempsEsclave1_Envoie = 0;
+    Envoyer_Message(EXTENSION1, "=");
+  }
 
-    case ESCLAVE2:
-    {
-      if(DernierTempsEsclave2 < 20)
-        break;
-      DernierTempsEsclave2 = 0;
-      Envoyer_Message(EXTENSION1, "=");
-      Envoyer_Message(MAITRE, "=");
-    }
-    break;
-
-    default:
-    break;
+  if(DernierTempsEsclave2_Envoie > 3)
+  {
+    DernierTempsEsclave2_Envoie = 0;
+    Envoyer_Message(EXTENSION2, "=");
   }
 
   // On met à jour la durée de tous les ports
@@ -2606,13 +2537,16 @@ void SYS_WatchDog_Serie()
   DernierTempsEsclave1 += DifferenceTempsActu;
   DernierTempsEsclave2 += DifferenceTempsActu;
   DernierTempsMaitre += DifferenceTempsActu;
+  DernierTempsEsclave1_Envoie += DifferenceTempsActu;
+  DernierTempsEsclave2_Envoie += DifferenceTempsActu;
+  DernierTempsMaitre_Envoie += DifferenceTempsActu;
 
   // On vérifie que le chien de garde est activé
   if(!watchdogActif)
     return;
 
-  // On vérifie que ça fait moins de 5 secondes pour tout le monde
-  if(DernierTempsPC > 50)
+  // On vérifie que ça fait moins de 1 seconde pour tout le monde
+  if(DernierTempsPC > 10)
   {
     // On déconnecte l'admin, et le PC
     Connecte = 0;
@@ -2620,16 +2554,16 @@ void SYS_WatchDog_Serie()
     Ordinateur = 0;
   }
 
-  if(DernierTempsTelecommande > 50)
+  if(DernierTempsTelecommande > 10)
     Telecommande = 0;
 
-  if(DernierTempsMaitre > 50)
+  if(DernierTempsMaitre > 10)
     Carte_Maitre = 0;
 
-  if(DernierTempsEsclave1 > 50)
+  if(DernierTempsEsclave1 > 10)
     Extension1 = 0;
 
-  if(DernierTempsEsclave2 > 50)
+  if(DernierTempsEsclave2 > 10)
     Extension2 = 0;
 }
 

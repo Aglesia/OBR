@@ -21,8 +21,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "Serial/Serial.h"
-#include "OBR/OBR.h"
+#include "../../../Bibliotheques/include/Serial/Serial.h"
+#include "../BibliothequeOBR/OBR.h"
 
 /// Liste des fonctions
 void AfficherAide();
@@ -40,7 +40,6 @@ int main()
 
     /// Message de bienvenue
     printf("Bienvenue dans TeC'OBiR (Terminal Configuration for Open Bidouille Robot) V1.3\nCe programme est developpe par Dorian Fragni et le FabLab des fabriques du ponan.\nIcone de http://icons8.com.\nLe programme sert a configurer/deboguer un arduino tournant sour Open Bidouille Robot.\n\n");
-    SELECTPORT:
     printf("Scan des ports en cours...\n");
     Commande = 0;
 
@@ -52,19 +51,33 @@ int main()
             if(Commande)
                 break;
         }
+        delay(200);
     }
 
     if(Commande)
     {
         printf("\n%s V%f Connecte !\n", Commande->Nom, Commande->OBR_Version);
-        /// Si la version est plus grande que la 0.1
-        if(Commande->OBR_Version >= 0.2)
+
+        /// Si la version est plus grande que la 0.2 mais plus petite que la 0.7
+        if(Commande->OBR_Version >= 0.3 && Commande->OBR_Version < 0.7)
         {
             /// On désactive la déconnexion auto
             if(Commande->OBR_Version >= 0.37)
                 Envoie_Commande("OBR_DECONNEXION_AUTO-0", Commande, Commande->MAITRE_ESCLAVE);
             Recup_Commande(Commande);
 
+        }
+
+        /// Si la version est plus grande que la 0.7
+        else if(Commande->OBR_Version >= 0.7)
+        {
+            /// On lance le watchdog inclus par obligation dans OBR4
+
+        }
+
+        /// Si la version est plus grande que la 0.7
+        if(Commande->OBR_Version >= 0.2 && Commande->OBR_Version <= 0.7)
+        {
             /// On s'authentifie si possible
             printf("Connexion en tant qu'admin...\n");
             /// Selon la version, la commande de connexion en admin n'est pas ma même
@@ -114,10 +127,10 @@ int main()
                 printf("@administrateur>");
             else
                 {
-                    printf("Impossible de communiquer avec l'arduino, verifiez sa connexion.\nDeconnexion et scan des ports en cours...\n");
+                    printf("Impossible de communiquer avec l'arduino, verifiez sa connexion.\nDeconnexion.\n");
                     OBR_Deconnecter(Commande);
                     Commande = 0;
-                    goto SELECTPORT;
+                    return;
                 }
 
 

@@ -26,6 +26,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #error "Veuillez inclure Serial.h"
 #endif // SERIAL_H_INCLUDED
 
+#include <pthread.h>
+
 
 /// définition d'une structure de commande
 typedef struct Commande_OBR
@@ -38,6 +40,10 @@ typedef struct Commande_OBR
     int MAITRE_ESCLAVE; // Définit sur quel type de carte le PC est branché (la variable contient l'adresse)
     int TELECOMMANDE_PC; // 1 si c'est le PC, 2 si c'est la télécommande
     double OBR_Version; // Version de l'OBR installé sur l'arduino
+    pthread_t Tread; // Tread du watchdog
+    pthread_mutex_t mutex; // Mutex, verrouille les variables si besoin
+    unsigned long Temps_WatchDog; // Dernière fois (en ms) qu'un message a été envoyé
+    int WatchdogLance; // Indique si le watchdog est lancé
 } Commande_OBR;
 
 #define OBR_VERSION "1.3"
@@ -58,6 +64,12 @@ int OBR_Arduino_Pret(Commande_OBR *Commande);
 
 /// Envoie un message de watchdog pour maintenir la connexion active
 void OBR_Maintenir_Connexion(Commande_OBR *Commande);
+
+/// Activer le watchdog série
+int Activer_Watchdog(Commande_OBR *Commande);
+
+/// Désactiver le Watchdog série
+void Desactiver_Watchdog(Commande_OBR *Commande);
 
 /// Demande à l'arduino une connexion, en se faisant passer pour un PC (configuration) ou une télécommande (pilotage), retourne l'adresse de la Commande_OBR si connecté
 int OBR_Connecter(int NoPort, int TypePeripherique);
