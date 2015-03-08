@@ -7,11 +7,22 @@ v0.6 :
 - Première version utilisable
 
 v0.7 :
+- Version basée sur le noyau OBR v0.7
+- Passage partielle au protocole de communication OBR4
+- Utilisation de F() pour économiser de la RAM, sur les String des différentes commandes
+- Correction de Bugs empêchant la connexion entre deux arduino
+- Refonte totale de la gestion des connexions entre les cartes
+- Ajout de la valeur à 0 pour une sortie (peut être 0 ou 1)
+- Watchdog non désactivable
 
 v0.8 :
+- Ajout d'identifiants devant la commande pour connaître le type de message (réponse, commande, watchdog...)
+- Amélioration de la stabilité de la connexion
 
 v0.9 :
-- Passage au protocole de communication OBR4
+- Passage de 57600 à 115200 bauds à la volée
+- Gestion des servomoteurs
+- Optimisation des transmissions
 
 v1.0 :
 - Première version finale

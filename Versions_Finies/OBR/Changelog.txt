@@ -49,39 +49,36 @@
 - Changement de la gestion des numéro de PWM : maintenant on envoie son n° de PIN (et non plus n°PWM) en paramètre
 - La liaison entre le PIN 12 et 13 au démarrage réinitialise le mot de passe, mais aussi toutes les configurations
 - WatchDog plus intelligent, évite la surcharge du réseau lorsque ça discute
+- Correction du BUG qui laisse la LED 13 allumée quand on la déconnecte
+- Deconnexion de l'administrateur lors du pilotage
 
 0.8 :
-- Gestion centralisée par le maitre, on peut configurer une E/S d'une autre carte, en passant par le maître
-- Gestion améliorée de la batterie (& commande suplémentaire pour gérer la batterie)
-- Mise en place des liens entre toutes les cartes
-- Correction du BUG qui laisse la LED 13 allumée quand on la déconnecte
+- Utilisation de F() pour économiser de la RAM, sur les String des différentes commandes
+- Correction de Bugs empêchant la connexion entre deux arduino
+- Refonte totale de la gestion des connexions entre les cartes
+- Passage partielle au protocole OBR4
+- Utilisation de la bibliothèque <Servo.h>
+- Deconnexion automatique des PWM connectés sur les PIN vérouillés par la bibliothèque <Servo.h>
+- Arret complet des moteurs lors de la déconnexion (Valeur_Voulue mis à 0, sauf pour les servomoteurs)
+- Ajout d'identifiants devant la commande pour connaître le type de message (réponse, commande, watchdog...)
+- Ajout de la valeur à 0 pour une sortie (peut être 0 ou 1)
+- Watchdog non désactivable
 
 0.9 :
-- Compression des fonctions, et optimisation du code (le rendant compatible avec un arduino UNO)
-- Gestion autonome en cas de coupure entre deux cartes (les liens rompus bloquent l'activation des sorties concernées)
-- Passage au protocole OBR4
-- Le WatchDog sur les connexions série ne peut plus être coupé
+- Gestion centralisée par le maitre, on peut configurer une E/S d'une autre carte, en passant par le maître
+- Mise en place des liens entre toutes les cartes
+- Doublage du nombre de liens (passage à 2 liens Analogique et 6 liens numériques)
+- Ajout d'une commande de création de pont entre deux ports séries, pour les cartes le permettant
 
 1.0 :
 - Première version finale
+- Compression des fonctions, et optimisation du code
+- Gestion autonome en cas de coupure entre deux cartes (les liens rompus bloquent l'activation des sorties concernées)
+- Gestion améliorée de la batterie (& commande suplémentaire pour gérer la batterie)
 - Contient toutes les commandes de pilotage
 - Contient toutes les commandes de configuration
-- Utilise le protocole OBR4, compatible OBR3 (utilisé depuis la v0.3)
+- Utilise le protocole OBR4, non compatible OBR3 (utilisé jusqu'à la v0.7)
 - Le système de WatchDog des connexions séries est fonctionnel
 - On peut brancher et débrancher une carte du réseau à chaud
 - On peut connecter une télécommande OBRoC sans problème
-- Entierement compatible avec TeC'OBiR 1.4 et superieur
-
-
-OBR3 :
-- Ajout des adresses dans les commandes
-- Ajout de commandes spécifiques à la connexion et déconnexion au réseau
-- Changement de quelques commandes systèmes
-- Mise en place du dialogue avec les cartes d'extension via les ports série
-
-OBR4 :
-- Prend en compte les commandes personnalisées, et donne accès aux fonctions du noyau de manière sécurisée
-- Meilleur gestion des connexions sur tout le réseau : connexion et déconnexion à chaud sans aucune difficultée
-- Gestion des numéros de PIN identique entre les E/S et les PWM (ce n'est plus le numéro PWM qui est envoyé en paramètre, mais le numéro PIN)
-- Ajout de mots de passe d'utilisation entre Maitre et Esclaves (évite le contrôle non autorisé par un esclave ou un maitre)
-- Watchdog non désactivable
+- Entierement compatible avec TeC'OBiR 1.5 et superieur
